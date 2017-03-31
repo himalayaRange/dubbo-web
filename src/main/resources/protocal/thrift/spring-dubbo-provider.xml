@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:dubbo="http://code.alibabatech.com/schema/dubbo"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans    
+	http://www.springframework.org/schema/beans/spring-beans.xsd    
+	http://code.alibabatech.com/schema/dubbo    
+	http://code.alibabatech.com/schema/dubbo/dubbo.xsd">
+	
+	<description>Thrift协议服务提供者</description>
+	
+	<!-- https://github.com/yankai913/dubbo-rpc-thrift 
+	      服务提供者的接口必须和消费者一致，可以将接口导出成jar供消费者调用
+	  dubbo:registry 标签一些属性的说明：
+      1）register是否向此注册中心注册服务，如果设为false，将只订阅，不注册。
+      2）check注册中心不存在时，是否报错。
+      3）subscribe是否向此注册中心订阅服务，如果设为false，将只注册，不订阅。
+      4）timeout注册中心请求超时时间(毫秒)。
+      5）address可以Zookeeper集群配置，地址可以多个以逗号隔开等
+	 -->
+	
+	<!--使用Thrift协议：
+	   .thrift是Facebook捐给Apache的RPC框架
+	        优缺点：
+		Thrift的好处主要是以下几点
+		1. One-stop shop，相对于protobuf，序列化和RPC支持一站式解决，如果是pb的话，还需要考虑选择RPC框架，现在Google是开源了gRpc，但是几年以前是没有第一方的标准解决方案的
+		2. 特性丰富，idl层面支持map，protobuf应该是最近才支持的，map的key支持任意类型，avro只支持string，序列化支持自定义protocol, rpc支持thread pool, hsha, no blocking 多种形式，必有一款适合你，对于多语言的支持也非常丰富
+		3. RPC和序列化性能都不错，这个到处都有benchmark，并不是性能最好的，但是基本上不会成为瓶颈或者短板
+		4. 有很多开源项目的周边支持都是thrift的，hbase提供thrift服务，hive，spark sql，cassandra等一系列对外的标准服务接口都是thrift的以支持多语言。
+		5. Column Storage的话，parquet支持直接通过thrift idl转换，如果在Hadoop集群上存储数据，elephant-bird 支持得很好，你可以很方便地针对thrift的数据通过pig写dsl，如果你希望在rpc服务外做一系列工作，可以用finagle包装一层。不过，这部分对于protobuf和avro支持一般也不错
+		
+		对于早中期的互联网公司，从山寨版走向"Everything is a service"的方案，thrift是一个很好的，开箱即用的一站式解决方案，不需要自行做改造或者适配，性能也很优秀，没有太多摸索和踩坑的成本。
+		
+		缺点么，和其他facebook开源的项目都有类似的问题，只管拉不管擦
+		1. 基本没有官方文档，使用参考可以看看有人专门写的这个 Thrift: The Missing Guide
+		2. RPC在 0.6.1 升级到 0.7.0 是不兼容的！这个对于早于 0.6.1 开始使用的用户来说是个大坑
+		3. bug fix和更新不积极，好在序列化和RPC服务都不是太复杂的问题，需要考量的设计问题不多，自己维护patch的成本不高，如果我没有记错的话，0.6.1的java的ThreadPool Server是会有Thread死亡之后的Thread泄露问题的
+		4. Facebook今年说，我们开源了一个新的performance更好的 fbthrift，你说你该用apache thrift还是fbthrift呢?
+	-->
+	
+	
+	<!-- 公共信息，也可以用dubbo.properties配置 -->
+	<dubbo:application name="protocal-thrift-provider" />
+    
+    <!-- 提供方应用名称信息，这个相当于起一个名字，我们dubbo管理页面比较清晰是哪个应用暴露出来的 -->
+	<dubbo:registry address="zookeeper://120.55.162.161:2181" check="false" subscribe="false" register="true"></dubbo:registry>
+	
+	<!--accepts限制连接数，防止消费者过多撑挂，进行自我保护,可以设置多个端口-注意，如果使用servlet派发请求：
+	         协议支持：  专门针对Java语言的：Kryo，FST等等
+				跨语言的：Protostuff，ProtoBuf，Thrift，Avro，MsgPack等等
+        <dubbo:protocol name="dubbo" serialization="kryo"/> 较成熟
+        <dubbo:protocol name="dubbo" serialization="fst"/> 新兴的
+		协议的端口<dubbo:protocol port="8080" />必须与servlet容器的端口相同，
+		协议的上下文路径<dubbo:protocol contextpath="foo" />必须与servlet应用的上下文路径相同，生产环境直接配置端口，ROOT根目录。
+	 	<dubbo:protocol name="hessian" contextpath="dubbo-web" server="servlet" port="8080" accepts="1000"/>
+	 -->
+    <!--JETTY <dubbo:protocol name="hessian" port="8080" server="jetty" accepts="1000"/> -->
+	<dubbo:protocol name="thrift"  threads="100" serialization="thrift" contextpath="dubbo-web"  port="3030" />
+		
+	<!-- 扫描注解包路径，多个包用逗号分隔，不填pacakge表示扫描当前ApplicationContext中所有的类 -->
+	<!-- <dubbo:annotation package="com.github.wangyi.dubbo.service"/> -->
+	
+	<!-- 使用spring的IOC进行注入，定义了path后在消费者直接通过URL获取接口 -->
+	
+    <bean id="payService" class="com.github.wangyi.dubbo.service.WebserviceServeImpl"></bean>
+    <dubbo:service filter="authorityFilter"  interface="com.github.wangyi.dubbo.interfaces.WebserviceService"
+    			   ref="payService" protocol="thrift" version="1.0.0" path="http_dubbo/thrift/payService" />
+	
+	<bean id="helloService" class="com.github.wangyi.dubbo.service.HelloServicesImpl" />
+	<dubbo:service filter="authorityFilter"  interface="com.github.wangyi.dubbo.interfaces.HelloService$Iface"
+				   ref="helloService" protocol="thrift" version="1.0.0" path="http_dubbo/thrift/helloService"/>
+	
+</beans>

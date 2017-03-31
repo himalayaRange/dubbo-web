@@ -1,0 +1,5 @@
+本包是为了基于Dubbo实现自定义的各种协议
+在resource/META-INF/protocal定义协议的实现，在配置文件直接引用即可
+
+基于Facebook的swift协议实现protocal,Swift简化了thrift的开发，不需要再定义idl,直接使用注解的方式定义
+通过测试：swift的性能要优于dubbo自带的协议 https://github.com/facebook/swift

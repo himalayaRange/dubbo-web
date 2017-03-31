@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:dubbo="http://code.alibabatech.com/schema/dubbo"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans    
+	http://www.springframework.org/schema/beans/spring-beans.xsd    
+	http://code.alibabatech.com/schema/dubbo    
+	http://code.alibabatech.com/schema/dubbo/dubbo.xsd">
+	
+	<description>dubbo协议服务提供者</description>
+	
+	<!-- 
+	      服务提供者的接口必须和消费者一致，可以将接口导出成jar供消费者调用
+	  dubbo:registry 标签一些属性的说明：
+      1）register是否向此注册中心注册服务，如果设为false，将只订阅，不注册。
+      2）check注册中心不存在时，是否报错。
+      3）subscribe是否向此注册中心订阅服务，如果设为false，将只注册，不订阅。
+      4）timeout注册中心请求超时时间(毫秒)。
+      5）address可以Zookeeper集群配置，地址可以多个以逗号隔开等
+	 -->
+	
+	<!-- 采用dubbo缺省协议：Dubbo缺省协议采用的是单一的长连接和NIO异步通讯，适合于小数量大并发的的服务调用，以及消费者机器数远大于服务提供者的机器数量的情况 
+		 *Dubbo缺省协议不适合传送大数据量的服务，比如传文件，传视频等，除非请求量很低-->
+	
+	<!-- 公共信息，也可以用dubbo.properties配置 -->
+	<dubbo:application name="protocal-dubbo-provider" />
+    
+    <!-- 提供方应用名称信息，这个相当于起一个名字，我们dubbo管理页面比较清晰是哪个应用暴露出来的 -->
+	<!-- <dubbo:registry address="zookeeper://192.168.223.128:2181" check="false" subscribe="false" register="true"></dubbo:registry> -->
+	<dubbo:registry address="zookeeper://120.55.162.161:2181" check="false" subscribe="false" register="true"></dubbo:registry>
+	
+	<!--accepts限制连接数，防止消费者过多撑挂，进行自我保护-->
+    <dubbo:protocol name="dubbo" port="20880" accepts="100"/>
+		
+	<!-- 扫描注解包路径，多个包用逗号分隔，不填pacakge表示扫描当前ApplicationContext中所有的类 -->
+	<dubbo:annotation package="com.github.wangyi.dubbo.service.annotation"/>
+	
+	<!-- 使用spring的IOC进行注入,定义了path后在消费者直接通过URL获取接口 -->
+	<bean id="rpcService" class="com.github.wangyi.dubbo.service.RpcServiceImpl"></bean>
+    <dubbo:service interface="com.github.wangyi.dubbo.interfaces.RpcService" ref="rpcService" path="http_dubbo/dubbo/rpcService"/>
+    
+</beans>

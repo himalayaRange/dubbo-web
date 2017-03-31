@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:dubbo="http://code.alibabatech.com/schema/dubbo"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans    
+	http://www.springframework.org/schema/beans/spring-beans.xsd    
+	http://code.alibabatech.com/schema/dubbo    
+	http://code.alibabatech.com/schema/dubbo/dubbo.xsd">
+	
+	<description>Hessian协议服务提供者</description>
+	
+	<!-- 
+	      服务提供者的接口必须和消费者一致，可以将接口导出成jar供消费者调用
+	  dubbo:registry 标签一些属性的说明：
+      1）register是否向此注册中心注册服务，如果设为false，将只订阅，不注册。
+      2）check注册中心不存在时，是否报错。
+      3）subscribe是否向此注册中心订阅服务，如果设为false，将只注册，不订阅。
+      4）timeout注册中心请求超时时间(毫秒)。
+      5）address可以Zookeeper集群配置，地址可以多个以逗号隔开等
+	 -->
+	
+	<!--采用Hessian协议进行服务的发布，客户端通过标准的Hessian接口进行调用
+		Hessian协议:
+		.连接个数：多连接
+		.连接方式：短连接
+		.传输协议：HTTP
+		.传输方式：同步传输
+		.序列化：Hessian的二进制序列化，比json,webservice,java的序列化的效率高,采用Hessian序列化+Thrift二进制压缩机制可以提高很高效率
+		.适用范围：传入传出参数的数据包数据大，提供者比消费者个数多，提供者压力大，如上传下载文件视频
+		.适用场景：页面传输，文件传输，或与原生的Hessian服务操作
+		注意：Hessian协议webx.xml必须配置
+		<servlet>
+		         <servlet-name>dubbo</servlet-name>
+		         <servlet-class>com.alibaba.dubbo.remoting.http.servlet.DispatcherServlet</servlet-class>
+		         <load-on-startup>1</load-on-startup>
+		</servlet>
+		<servlet-mapping>
+		         <servlet-name>dubbo</servlet-name>
+		         <url-pattern>/*</url-pattern>
+		</servlet-mapping>
+	-->
+	
+	
+	<!-- 公共信息，也可以用dubbo.properties配置 -->
+	<dubbo:application name="protocal-hessian-provider" />
+    
+    <!-- 提供方应用名称信息，这个相当于起一个名字，我们dubbo管理页面比较清晰是哪个应用暴露出来的 -->
+	<dubbo:registry address="zookeeper://120.55.162.161:2181" check="false" subscribe="false" register="true"></dubbo:registry>
+	
+	<!--accepts限制连接数，防止消费者过多撑挂，进行自我保护,可以设置多个端口-注意，如果使用servlet派发请求：
+	      协议支持：  专门针对Java语言的：Kryo，FST等等
+				跨语言的：Protostuff，ProtoBuf，Thrift，Avro，MsgPack等等
+		协议的端口<dubbo:protocol port="8080" />必须与servlet容器的端口相同，
+		协议的上下文路径<dubbo:protocol contextpath="foo" />必须与servlet应用的上下文路径相同，生产环境直接配置端口，ROOT根目录。
+	 	<dubbo:protocol name="hessian" contextpath="dubbo-web" server="servlet" port="8080" accepts="1000"/>
+	 -->
+    <!--JETTY <dubbo:protocol name="hessian" port="8080" server="jetty" accepts="1000"/> -->
+	<dubbo:protocol name="hessian"  serialization="kryo" server="servlet" contextpath="dubbo-web" port="10080" accepts="1000"/>
+		
+	<!-- 扫描注解包路径，多个包用逗号分隔，不填pacakge表示扫描当前ApplicationContext中所有的类 -->
+	<!-- <dubbo:annotation package="com.github.wangyi.dubbo.service"/> -->
+	
+	<!-- 使用spring的IOC进行注入，定义了path后在消费者直接通过URL获取接口 -->
+	<bean id="searchService" class="com.github.wangyi.dubbo.service.SearchServeImpl"></bean>
+    <dubbo:service filter="authorityFilter" interface="com.github.wangyi.dubbo.interfaces.SearchService" ref="searchService" protocol="hessian" version="1.0.0" path="http_dubbo/hessian/search"/>
+    
+</beans>
